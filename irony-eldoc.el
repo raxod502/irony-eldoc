@@ -218,6 +218,7 @@ inside `condition-case'."
                      close-paren (save-excursion (forward-list) (point)))
                ;; possibly skip across a template bracket
                (progn (when (= (char-before) ?>) (backward-list))
+                      (skip-syntax-backward " ")
                       (thing-at-point 'symbol)))
         (setq bounds (bounds-of-thing-at-point 'symbol)
               thing (buffer-substring-no-properties
@@ -331,7 +332,7 @@ be highlighted, and PROP is an object from
 ;; }}}
 ;; {{{ eldoc support
 
-(defun irony-eldoc--callback (thing &optional continuation)
+(defun irony-eldoc--callback (thing candidates &optional continuation)
   "Store found documentation in an overlay on THING,
 for use by future calls to `irony-eldoc-documentation-function'.
 
@@ -351,7 +352,7 @@ Once this is done, CONTINUATION will be called."
           ;; FIXME This really should be (irony-completion-candidates)
           ;; but that function looks at (point) to see if completion
           ;; context is the same, so we use the internal irony-mode variable.
-          irony-completion--candidates)))
+          candidates)))
     (when (equal current-thing (car thing))
       (let ((o (make-overlay (nth 1 thing) (nth 2 thing))))
         (overlay-put o 'category 'irony-eldoc)
@@ -416,9 +417,10 @@ If ONLY-USE-CACHED is non-nil, only look at cached documentation."
           ;; sometimes it is called later. Both cases need to be
           ;; handled properly.
           (irony-completion-candidates-async
-           (lambda ()
+           (lambda (candidates)
              (irony-eldoc--callback
               callback-thing
+              candidates
               (lambda () (if async-flag
                              (eldoc-print-current-symbol-info)
                            (setq matches-available t))))))
@@ -474,13 +476,12 @@ Notes:
    (t
     (when (eq eldoc-documentation-function
               #'irony-eldoc-documentation-function)
-      (setq-local eldoc-documentation-function nil)))))
+      (setq-local eldoc-documentation-function #'ignore)))))
 
 ;; }}}
 
 (provide 'irony-eldoc)
 ;; Local Variables:
-;; byte-compile-warnings: (not cl-functions)
 ;; coding: utf-8-unix
 ;; End:
 ;;; irony-eldoc.el ends here
